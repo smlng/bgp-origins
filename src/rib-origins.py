@@ -52,7 +52,7 @@ def store_rib_origins(ts, origins, dbconnstr):
         except Exception, e:
             logging.exception ("FAIL bulk operation, with: %s" , e.message)
     else:
-        logging.debug("PASS bulk operation")
+        logging.warn("PASS bulk operation, no data")
 
 def main():
     parser = argparse.ArgumentParser(description='', epilog='')
@@ -104,10 +104,9 @@ def main():
     rib_origins = dict()
     while(stream.get_next_record(rec)):
         if rec.status == 'valid':
-            logging.debug("stream record valid, processing ...")
             elem = rec.get_next_elem()
         else:
-            logging.debug("stream record invalid, skipping ...")
+            logging.warn("stream record invalid, skipping ...")
             continue
         if rec.time > (rib_ts + RIB_TS_INTERVAL):
             rib_ts = rec.time
