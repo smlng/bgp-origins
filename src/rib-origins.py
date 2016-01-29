@@ -12,6 +12,8 @@ import multiprocessing as mp
 
 from datetime import datetime
 from subprocess import PIPE, Popen
+
+from pymongo import MongoClient, DESCENDING, ASCENDING
 from _pybgpstream import BGPStream, BGPRecord, BGPElem
 
 RIB_TS_INTERVAL = 120
@@ -25,11 +27,26 @@ def valid_date(s):
         raise argparse.ArgumentTypeError(msg)
 
 # process functions
-def process_rib_origins(ts, origins):
+def print_rib_origins(ts, origins):
+    logging.debug("CALL print_rib_origins")
     for p in origins:
         print p + " : " + ','.join(o for o in origins[p])
     print "timestamp: " + str(ts) + ", #prefixes: " + str(len(origins.keys()))
     print
+
+def store_rib_origins(ts, origins, dbconnstr):
+    logging.debug("CALL store_rib_origins (ts: "+ts+", db: "+dbconnstr+")")
+    # open db connection
+    client = MongoClient(dbconnstr)
+    db = client.get_default_database()
+    bulk = db.origins.initialize_unordered_bulk_op()
+    for p in origins:
+        bulk.find({"prefix": p, "origin": origins[p]}).upsert().update({"$push": {'timestamps' : ts}})
+    try:
+        logging.debug("EXEC bulk operation")
+        bulk.execute({'w': 0})
+    except Exception, e:
+        logging.exception ("FAIL bulk operation, with: %s" , e.message)
 
 def main():
     parser = argparse.ArgumentParser(description='', epilog='')
@@ -42,6 +59,9 @@ def main():
     parser.add_argument('-c', '--collector',
                         help='Route collector from RIPE RIS or Route-Views project.',
                         type=str, required=True)
+    parser.add_argument('-m', '--mongodb',
+                        help='MongoDB connection parameters.',
+                        type=str, default=None)
     parser.add_argument('-l', '--loglevel',
                         help='Set loglevel [DEBUG,INFO,WARNING,ERROR,CRITICAL].',
                         type=str, default='WARNING')
@@ -56,6 +76,12 @@ def main():
 
     ts_begin = int((args['begin'] - datetime(1970, 1, 1)).total_seconds())
     ts_until = int((args['until'] - datetime(1970, 1, 1)).total_seconds())
+
+    mongodbstr = None
+    if args['mongodb']:
+        mongodbstr = args['mongodb'].strip()
+    # BEGIN
+    logging.info("START")
 
     # Create bgpstream
     stream = BGPStream()
@@ -75,12 +101,15 @@ def main():
             elem = rec.get_next_elem()
         if rec.time > (rib_ts + RIB_TS_INTERVAL):
             rib_ts = rec.time
-            process_rib_origins(rib_ts, rib_origins)
+            if mongodbstr:
+                store_rib_origins(rib_ts, rib_origins, mongodbstr)
+            else:
+                print_rib_origins(rib_ts, rib_origins)
             rib_origins = dict()
         while(elem):
             prefix = elem.fields['prefix']
             aspath = elem.fields['as-path'].split()
-            for a in aspath:
+            for a in aspath: # remove AS-SETs
                 if '{' in a:
                     aspath.remove(a)
             origin = aspath[-1]
