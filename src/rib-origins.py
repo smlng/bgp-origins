@@ -104,7 +104,11 @@ def main():
     rib_origins = dict()
     while(stream.get_next_record(rec)):
         if rec.status == 'valid':
+            logging.debug("stream record valid, processing ...")
             elem = rec.get_next_elem()
+        else:
+            logging.debug("stream record invalid, skipping ...")
+            continue
         if rec.time > (rib_ts + RIB_TS_INTERVAL):
             rib_ts = rec.time
             if mongodbstr:
