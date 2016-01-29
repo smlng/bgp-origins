@@ -40,13 +40,19 @@ def store_rib_origins(ts, origins, dbconnstr):
     client = MongoClient(dbconnstr)
     db = client.get_default_database()
     bulk = db.origins.initialize_unordered_bulk_op()
+    do_bulk = False
     for p in origins:
         bulk.insert({ 'timestamp': ts, 'prefix': p, "origin_asns": origins[p] })
-    try:
+        do_bulk = True
+    # end for loop
+    if do_bulk:
         logging.debug("EXEC bulk operation")
-        bulk.execute({'w': 0})
-    except Exception, e:
-        logging.exception ("FAIL bulk operation, with: %s" , e.message)
+        try:
+            bulk.execute({'w': 0})
+        except Exception, e:
+            logging.exception ("FAIL bulk operation, with: %s" , e.message)
+    else:
+        logging.debug("PASS bulk operation")
 
 def main():
     parser = argparse.ArgumentParser(description='', epilog='')
