@@ -35,13 +35,13 @@ def print_rib_origins(ts, origins):
     print
 
 def store_rib_origins(ts, origins, dbconnstr):
-    logging.debug("CALL store_rib_origins (ts: "+ts+", db: "+dbconnstr+")")
+    logging.debug("CALL store_rib_origins (ts: "+str(ts)+", db: "+dbconnstr+")")
     # open db connection
     client = MongoClient(dbconnstr)
     db = client.get_default_database()
     bulk = db.origins.initialize_unordered_bulk_op()
     for p in origins:
-        bulk.find({"prefix": p, "origin": origins[p]}).upsert().update({"$push": {'timestamps' : ts}})
+        bulk.insert({ 'timestamp': ts, 'prefix': p, "origin_asns": origins[p] })
     try:
         logging.debug("EXEC bulk operation")
         bulk.execute({'w': 0})
