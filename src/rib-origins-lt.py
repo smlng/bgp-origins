@@ -28,27 +28,25 @@ def valid_date(s):
         raise argparse.ArgumentTypeError(msg)
 
 # process functions
-def print_origins_lt(origins_lt):
-    logging.debug("CALL print_origins_lt")
-    logging.info("#datasets: " + str(len(origins_lt)))
-    logging.info("----------------------------------")
-    for l in origins_lt:
+def print_origins_lt(ts, lt):
+    logging.debug("CALL print_origins_lt ("+ts+","+str(len(lt))+")")
+    for l in lt:
         print "[%45s,%10s,%10d,%10d,%9d]" % (l[0],l[1],l[2],l[3],int(l[3]-l[2]))
-    logging.info("----------------------------------")
+    logging.info("EOD")
 
-def store_origins_lt(origins_lt, dbconnstr):
+def store_origins_lt(ts, lt, dbconnstr):
     logging.debug("CALL store_origins_lt ("+dbconnstr+")")
     # open db connection
     client = MongoClient(dbconnstr)
     db = client.get_default_database()
     bulk = db.origins_lt.initialize_unordered_bulk_op()
     do_bulk = False
-    for l in origins_lt:
-        bulk.insert({ 'pfx': l[0], "asn": l[1], 'ttl': [ l[2], l[3] ] })
+    for l in lt:
+        bulk.insert({ 'pfx': l[0], 'asn': l[1], 'ts': ts, 'ttl': [ l[2], l[3] ] })
         do_bulk = True
     # end for loop
     if do_bulk:
-        logging.debug("EXEC bulk operation (#"+str(len(origins_lt))+")")
+        logging.debug("EXEC bulk operation (# "+str(len(lt))+")")
         try:
             bulk.execute({'w': 0})
         except Exception, e:
@@ -120,19 +118,19 @@ def main():
                     #end if
                 #end for
             #end for
+            rib_ts = rec.time
+            logging.info("ts: "+str(rib_ts))
             if len(origins_lt) > 0:
                 if mongodbstr:
-                    store_origins_lt(origins_lt, mongodbstr)
+                    store_origins_lt(rib_ts,origins_lt, mongodbstr)
                 else:
-                    print_origins_lt(origins_lt)
+                    print_origins_lt(rib_ts,origins_lt)
                 #end if
                 for l in origins_lt:
                     del rib_origins[l[0]][l[1]]
                 #end for
                 origins_lt = list()
             # end if
-            rib_ts = rec.time
-            logging.info("ts: "+str(rib_ts))
         #end if
         while(elem):
             prefix = elem.fields['prefix']
