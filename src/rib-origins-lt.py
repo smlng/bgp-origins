@@ -29,10 +29,10 @@ def valid_date(s):
 
 # process functions
 def print_origins_lt(ts, lt):
-    logging.debug("CALL print_origins_lt ("+ts+","+str(len(lt))+")")
+    logging.debug("CALL print_origins_lt (%10d,%10d)" % (ts,len(lt)))
     for l in lt:
         print "[%45s,%10s,%10d,%10d,%9d]" % (l[0],l[1],l[2],l[3],int(l[3]-l[2]))
-    logging.info("EOD")
+    logging.info("--- EOD ---")
 
 def store_origins_lt(ts, lt, dbconnstr):
     logging.debug("CALL store_origins_lt ("+dbconnstr+")")
@@ -156,9 +156,9 @@ def main():
         for o in rib_origins[p]:
             origins_lt.append( (p,o,rib_origins[p][o][0],rib_ts) )
     if mongodbstr:
-        store_origins_lt(origins_lt, mongodbstr)
+        store_origins_lt(rib_ts,origins_lt, mongodbstr)
     else:
-        print_origins_lt(origins_lt)
+        print_origins_lt(rib_ts,origins_lt)
 #end def
 
 if __name__ == "__main__":
