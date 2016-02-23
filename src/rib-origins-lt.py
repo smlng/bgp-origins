@@ -48,7 +48,7 @@ def store_origins_lt(origins_lt, dbconnstr):
         do_bulk = True
     # end for loop
     if do_bulk:
-        logging.debug("EXEC bulk operation")
+        logging.debug("EXEC bulk operation (#"+str(len(origins_lt))+")")
         try:
             bulk.execute({'w': 0})
         except Exception, e:
