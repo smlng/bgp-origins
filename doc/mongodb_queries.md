@@ -27,5 +27,3 @@ db.origins_lt.aggregate([{$group: {_id: '$pfx', origins: {$addToSet: '$asn'}}},{
 db.runCommand({aggregate: "origins_lt", pipeline: [{$project: {_id:0, pfx:1, asn:1, begin: {$min: '$ttl'}, until: {$max: '$ttl'} } }, {$group: {_id: {pfx: '$pfx', asn: '$asn'}, ttls: {$push: {$subtract: ['$until', '$begin']}}
 }} ], allowDiskUse: true} )
 ```
-
-
