@@ -83,7 +83,7 @@ def store_snapshot(ts, lts, dbconnstr):
         for pfx in lts:
             for asn in lts[pfx]:
                 ttl = lts[pfx][asn]
-                bulk.insert({ 'pfx': pfx, 'asn': asn, 'ts': ts, 'ttl': [ ttl[2], ttl[3] ] })
+                bulk.insert({ 'pfx': pfx, 'asn': asn, 'ts': ts, 'ttl': [ ttl[0], ttl[1] ] })
         try:
             bulk.execute({'w': 0})
         except Exception, e:
