@@ -81,8 +81,8 @@ def store_snapshot(ts, lts, dbconnstr):
     else:
         bulk = db[snapshot_name].initialize_unordered_bulk_op()
         for pfx in lts:
-            for asn in pfx:
-                ttl = pfx[asn]
+            for asn in lts[pfx]:
+                ttl = lts[pfx][asn]
                 bulk.insert({ 'pfx': pfx, 'asn': asn, 'ts': ts, 'ttl': [ ttl[2], ttl[3] ] })
         try:
             bulk.execute({'w': 0})
