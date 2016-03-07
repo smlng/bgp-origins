@@ -177,7 +177,6 @@ def main():
     # Start the stream
     stream.start()
 
-
     while(stream.get_next_record(rec)):
         if rec.status == 'valid':
             elem = rec.get_next_elem()
@@ -233,13 +232,21 @@ def main():
             elem = rec.get_next_elem()
         #end while
     #end while
-    for p in rib_origins:
-        for o in rib_origins[p]:
-            origins_lt.append( (p,o,rib_origins[p][o][0],rib_ts) )
-    if mongodbstr:
-        store_origins_lt(rib_ts,origins_lt, mongodbstr)
+    if args['snapshot']:
+        print "NOTE: remaining origin lifetimes are stored in latest snapshot (%d)!\n" % rib_ts
+        if (len(rib_origins.keys()) > 0):
+            store_snapshot(rib_ts, rib_origins, mongodbstr)
+        # end if
     else:
-        print_origins_lt(rib_ts,origins_lt)
+        print "NOTE: output remaining origin lifetimes with current ts (%d)\n" % rib_ts
+        origins_lt = list()
+        for p in rib_origins:
+            for o in rib_origins[p]:
+                origins_lt.append( (p,o,rib_origins[p][o][0],rib_ts) )
+        if mongodbstr:
+            store_origins_lt(rib_ts,origins_lt, mongodbstr)
+        else:
+            print_origins_lt(rib_ts,origins_lt)
 #end def
 
 if __name__ == "__main__":
