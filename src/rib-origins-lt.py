@@ -35,15 +35,14 @@ def load_snapshot(dbconnstr):
     client = MongoClient(dbconnstr)
     db = client.get_default_database()
     snapshot_names = db.collection_names(include_system_collections=False)
-    snapshot_latest = None
+    latest_snapshot_name = None
+    latest_snapshot_ts = 0
     for n in snapshot_names:
         if n.startswith(SNAPSHOT_PREFIX):
             n_ts = int(n[len(SNAPSHOT_PREFIX)+1:])
-            c_ts = 0
-            if snapshot_latest != None:
-                c_ts = int(snapshot_latest[len(SNAPSHOT_PREFIX)+1:])
-            if c_ts < n_ts:
-                snapshot_latest = n
+            if latest_snapshot_ts < n_ts:
+                latest_snapshot_name = n
+                latest_snapshot_ts = n_ts
     ret = None
     if snapshot_latest != None:
         ret = dict()
@@ -55,7 +54,7 @@ def load_snapshot(dbconnstr):
             if pfx not in ret:
                 ret[pfx] = dict()
             ret[pfx][asn] = (ttl[0],ttl[1])
-    return ret
+    return latest_snapshot_ts, ret
 
 def remove_snapshot(ts, dbconnstr):
     logging.debug("CALL remove_snapshot ("+dbconnstr+")")
@@ -155,6 +154,16 @@ def main():
     mongodbstr = None
     if args['mongodb']:
         mongodbstr = args['mongodb'].strip()
+
+    rib_ts = 0
+    rib_origins = dict()
+    origins_lt = list()
+    if args['snapshot']:
+        rib_ts, rib_origins = load_snapshot(mongodbstr)
+    if rib_ts > ts_begin:
+        logging.info ("SKIP, found snapshot with newer ts")
+        ts_begin = rib_ts + RIB_TS_THRESHOLD
+
     # BEGIN
     logging.info("START")
 
@@ -169,9 +178,7 @@ def main():
     # Start the stream
     stream.start()
 
-    rib_ts = 0
-    rib_origins = dict()
-    origins_lt = list()
+
     while(stream.get_next_record(rec)):
         if rec.status == 'valid':
             elem = rec.get_next_elem()
