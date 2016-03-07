@@ -66,7 +66,7 @@ def remove_snapshot(ts, dbconnstr):
     except Exception, e:
         logging.exception ("FAIL remove snapshot, with: %s" , e.message)
     else:
-        logging.info("SUCCESS remove snapshot")
+        logging.debug("SUCCESS remove snapshot")
 
 def store_snapshot(ts, lts, dbconnstr):
     logging.debug("CALL store_snapshot ("+dbconnstr+")")
@@ -87,7 +87,7 @@ def store_snapshot(ts, lts, dbconnstr):
         except Exception, e:
             logging.exception ("FAIL bulk operation, with: %s" , e.message)
         else:
-            logging.info("SUCCESS store snapshot.")
+            logging.debug("SUCCESS store snapshot.")
 
 def print_origins_lt(ts, lt):
     logging.debug("CALL print_origins_lt (%10d,%10d)" % (ts,len(lt)))
@@ -161,7 +161,7 @@ def main():
         rib_ts, rib_origins = load_snapshot(mongodbstr)
     if rib_ts > ts_begin:
         logging.info ("SKIP, found snapshot with newer ts")
-        ts_begin = rib_ts + RIB_TS_THRESHOLD
+        ts_begin = rib_ts - RIB_TS_THRESHOLD
 
     # BEGIN
     logging.info("START")
