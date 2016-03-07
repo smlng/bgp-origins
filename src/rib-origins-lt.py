@@ -18,6 +18,7 @@ from _pybgpstream import BGPStream, BGPRecord, BGPElem
 
 # required, 'cause output of RIB takes some time, too -> not done in a second
 RIB_TS_THRESHOLD = 300
+SNAPSHOT_PREFIX = "olt_snapshot"
 
 # helper functions
 def valid_date(s):
@@ -28,6 +29,68 @@ def valid_date(s):
         raise argparse.ArgumentTypeError(msg)
 
 # process functions
+def load_snapshot(dbconnstr):
+    logging.debug("CALL load_snapshot ("+dbconnstr+")")
+    # open db connection
+    client = MongoClient(dbconnstr)
+    db = client.get_default_database()
+    snapshot_names = db.collection_names(include_system_collections=False)
+    snapshot_latest = None
+    for n in snapshot_names:
+        if n.startswith(SNAPSHOT_PREFIX):
+            n_ts = int(n[len(SNAPSHOT_PREFIX)+1:])
+            c_ts = 0
+            if snapshot_latest != None:
+                c_ts = int(snapshot_latest[len(SNAPSHOT_PREFIX)+1:])
+            if c_ts < n_ts:
+                snapshot_latest = n
+    ret = None
+    if snapshot_latest != None:
+        ret = dict()
+        snapshot_data = list(db[snapshot_latest].find())
+        for e in snapshot_data:
+            pfx = e['pfx']
+            asn = e['asn']
+            ttl = e['ttl']
+            if pfx not in ret:
+                ret[pfx] = dict()
+            ret[pfx][asn] = (ttl[0],ttl[1])
+    return ret
+
+def remove_snapshot(ts, dbconnstr):
+    logging.debug("CALL remove_snapshot ("+dbconnstr+")")
+    # open db connection
+    client = MongoClient(dbconnstr)
+    db = client.get_default_database()
+    rs = SNAPSHOT_PREFIX + "_" + str(ts)
+    try:
+        db.drop_collection(rs)
+    except Exception, e:
+        logging.exception ("FAIL remove snapshot, with: %s" , e.message)
+    else:
+        logging.info("SUCCESS remove snapshot")
+
+def store_snapshot(ts, lts, dbconnstr):
+    logging.debug("CALL store_snapshot ("+dbconnstr+")")
+    # open db connection
+    client = MongoClient(dbconnstr)
+    db = client.get_default_database()
+    snapshot_name = SNAPSHOT_PREFIX + "_" + str(ts)
+    if (snapshot_name in db.collection_names()) or (len(lts.keys()) < 1):
+        logging.warn("SKIP, snapshot exists!")
+    else:
+        bulk = db[snapshot_name].initialize_unordered_bulk_op()
+        for pfx in lts:
+            for asn in pfx:
+                ttl = pfx[asn]
+                bulk.insert({ 'pfx': pfx, 'asn': asn, 'ts': ts, 'ttl': [ ttl[2], ttl[3] ] })
+        try:
+            bulk.execute({'w': 0})
+        except Exception, e:
+            logging.exception ("FAIL bulk operation, with: %s" , e.message)
+        else:
+            logging.info("SUCCESS store snapshot.")
+
 def print_origins_lt(ts, lt):
     logging.debug("CALL print_origins_lt (%10d,%10d)" % (ts,len(lt)))
     for l in lt:
@@ -68,6 +131,12 @@ def main():
     parser.add_argument('-m', '--mongodb',
                         help='MongoDB connection parameters.',
                         type=str, default=None)
+    parser.add_argument('-k', '--keepsnapshots',
+                        help='Keep all snapshots, works only with -s.',
+                        action='store_true')
+    parser.add_argument('-s', '--snapshot',
+                        help='Enable snapshoting.',
+                        action='store_true')
     parser.add_argument('-l', '--loglevel',
                         help='Set loglevel [DEBUG,INFO,WARNING,ERROR,CRITICAL].',
                         type=str, default='WARNING')
@@ -118,6 +187,12 @@ def main():
                     #end if
                 #end for
             #end for
+            if args['snapshot'] and (len(rib_origins.keys()) > 0):
+                store_snapshot(rec.time, rib_origins, mongodbstr)
+                if not args['keepsnapshots']:
+                    remove_snapshot(rib_ts, mongodbstr)
+                # end if keepsnapshots
+            # end if snapshot
             rib_ts = rec.time
             logging.info("ts: "+str(rib_ts))
             if len(origins_lt) > 0:
