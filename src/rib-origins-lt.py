@@ -18,7 +18,7 @@ from _pybgpstream import BGPStream, BGPRecord, BGPElem
 
 # required, 'cause output of RIB takes some time, too -> not done in a second
 RIB_TS_THRESHOLD = 300
-SNAPSHOT_PREFIX = "olt_snapshot"
+SNAPSHOT_PREFIX = "snapshot"
 
 # helper functions
 def valid_date(s):
@@ -44,9 +44,9 @@ def load_snapshot(dbconnstr):
                 latest_snapshot_name = n
                 latest_snapshot_ts = n_ts
     ret = None
-    if snapshot_latest != None:
+    if latest_snapshot_name != None:
         ret = dict()
-        snapshot_data = list(db[snapshot_latest].find())
+        snapshot_data = list(db[latest_snapshot_name].find())
         for e in snapshot_data:
             pfx = e['pfx']
             asn = e['asn']
