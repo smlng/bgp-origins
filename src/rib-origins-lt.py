@@ -43,9 +43,8 @@ def load_snapshot(dbconnstr):
             if latest_snapshot_ts < n_ts:
                 latest_snapshot_name = n
                 latest_snapshot_ts = n_ts
-    ret = None
+    ret = dict()
     if latest_snapshot_name != None:
-        ret = dict()
         snapshot_data = list(db[latest_snapshot_name].find())
         for e in snapshot_data:
             pfx = e['pfx']
